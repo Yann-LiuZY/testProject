@@ -2,9 +2,23 @@ const { Controller } = require('egg');
 
 function getStore(app) {
   if (!app.debugConfigStore) {
-    app.debugConfigStore = { hasData: false, data: undefined };
+    app.debugConfigStore = { hasData: false, data: undefined, version: 0 };
   }
   return app.debugConfigStore;
+}
+
+function hasOwn(object, key) {
+  return object != null && Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function parseVersion(value) {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 ? value : NaN;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+  return NaN;
 }
 
 class DebugConfigController extends Controller {
@@ -16,18 +30,31 @@ class DebugConfigController extends Controller {
       ctx.body = { message: 'debug config is empty' };
       return;
     }
-    ctx.body = { data: store.data };
+    ctx.body = { data: store.data, version: store.version };
   }
 
   async create() {
     const { ctx, app } = this;
     const store = getStore(app);
-    const data = ctx.request.body && Object.prototype.hasOwnProperty.call(ctx.request.body, 'data')
-      ? ctx.request.body.data
-      : ctx.query.data;
+    const body = ctx.request.body;
+    const data = hasOwn(body, 'data') ? body.data : ctx.query.data;
+
+    if (hasOwn(body, 'version')) {
+      const expectedVersion = parseVersion(body.version);
+      if (!Number.isFinite(expectedVersion) || expectedVersion !== store.version) {
+        ctx.status = 409;
+        ctx.body = {
+          message: 'debug config version conflict',
+          currentVersion: store.version,
+        };
+        return;
+      }
+    }
+
     store.hasData = true;
     store.data = data;
-    ctx.body = { data: store.data };
+    store.version += 1;
+    ctx.body = { data: store.data, version: store.version };
   }
 
   async destroy() {
@@ -35,6 +62,7 @@ class DebugConfigController extends Controller {
     const store = getStore(app);
     store.hasData = false;
     store.data = undefined;
+    store.version = 0;
     ctx.status = 204;
   }
 
@@ -49,6 +77,7 @@ class DebugConfigController extends Controller {
     const data = store.data;
     store.hasData = false;
     store.data = undefined;
+    store.version = 0;
     ctx.body = { data };
   }
 }

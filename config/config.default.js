@@ -28,6 +28,11 @@ module.exports = appInfo => {
     },
   };
 
+  // 内存中保留的页面打开记录上限，超出后淘汰最久没有被打开过的 tab
+  config.pageVisit = {
+    maxTabs: 100,
+  };
+
   // add your user config here
   const userConfig = {
     // myAppName: 'egg',

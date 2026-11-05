@@ -181,6 +181,11 @@
     .body-field { display: flex; flex-direction: column; gap: 6px; }
     .body-field[hidden] { display: none; }
 
+    .headers-field { display: flex; flex-direction: column; gap: 6px; }
+    .headers-field textarea { min-height: 76px; }
+
+    .field-note { margin: 0; color: var(--muted); font-size: 12px; }
+
     .form-error {
       min-height: 1.2em;
       margin: 0;
@@ -243,6 +248,8 @@
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       font-size: 12px;
     }
+
+    .request-id { overflow-wrap: anywhere; }
 
     pre.body {
       margin: 0;
@@ -311,14 +318,16 @@
     <header>
       <p class="kicker">TESTSERVER</p>
       <h1>接口调试</h1>
-      <p class="lede">向当前服务发送请求，查看状态码、耗时和响应体。调试配置与页面访问记录保存在进程内存中，重启服务后会清空。页面访问还会写入日志文件 page-visit.log。</p>
+      <p class="lede">向当前服务发送请求，查看状态码、耗时和响应体。请求会带上 x-request-id，便于把响应与 page-visit.log 关联起来。调试配置与页面访问记录保存在进程内存中，重启服务后会清空。</p>
     </header>
     <div class="layout">
       <aside class="panel nav">
         <div id="nav"></div>
         <div class="tips">
           <p>调试配置可以按「写入 → 查询 → 读取并清空」试一遍。</p>
-          <p>页面访问先「记录打开」，再「查询记录」。</p>
+          <p>带 version 写入时，版本不一致会返回 409，并给出 currentVersion。</p>
+          <p>页面访问默认最多保留 100 个 tab，超限淘汰最久没有打开的记录。</p>
+          <p>请求头里的 x-request-id 合法时原样返回，否则由服务端生成新的 uuid。</p>
         </div>
       </aside>
       <section class="panel workspace">
@@ -334,6 +343,11 @@
           </select>
           <label for="path">路径</label>
           <input id="path" spellcheck="false" autocomplete="off" placeholder="/api/debug-config">
+        </div>
+        <div class="headers-field">
+          <label for="headers">请求头 JSON</label>
+          <textarea id="headers" spellcheck="false" placeholder='{&#10;  "x-request-id": "debug-page-0001"&#10;}'></textarea>
+          <p class="field-note">可选。x-request-id 需为 8–64 位字母、数字、下划线或连字符；留空时由服务端生成。</p>
         </div>
         <div id="body-field" class="body-field">
           <label for="body">请求体 JSON</label>
@@ -367,7 +381,17 @@
         method: 'GET',
         path: '/test',
         body: '',
-        hint: '返回固定 JSON：{ "data": "test" }。',
+        hint: '返回固定 JSON：{ "data": "test" }。响应头会带 x-request-id。',
+      },
+      {
+        id: 'request-id',
+        group: '基础',
+        name: '自定义 request id',
+        method: 'GET',
+        path: '/test',
+        headers: '{\n  "x-request-id": "debug-page-0001"\n}',
+        body: '',
+        hint: '合法的 x-request-id 会原样返回；含空格、中文或不足 8 位时，服务端会替换为新的 uuid。',
       },
       {
         id: 'debug-show',
@@ -376,7 +400,7 @@
         method: 'GET',
         path: '/api/debug-config',
         body: '',
-        hint: '读取当前保存的配置。还没有写入时，状态码是 404。',
+        hint: '返回 { data, version }。还没有写入时，状态码是 404。',
       },
       {
         id: 'debug-create',
@@ -385,7 +409,16 @@
         method: 'POST',
         path: '/api/debug-config',
         body: '{\n  "data": {\n    "enabled": true,\n    "note": "hello"\n  }\n}',
-        hint: '正文里的 data 会原样保存，可以是对象、数组或字符串。',
+        hint: '正文里的 data 会原样保存。省略 version 时直接覆盖并把 version 加 1；带上与当前一致的 version 才允许写入。',
+      },
+      {
+        id: 'debug-conflict',
+        group: '调试配置',
+        name: '模拟版本冲突',
+        method: 'POST',
+        path: '/api/debug-config',
+        body: '{\n  "data": {\n    "enabled": false\n  },\n  "version": 0\n}',
+        hint: '用过期版本写入会返回 409 和 currentVersion，已有配置不会被覆盖。先成功写入一次再发送，效果更明显。',
       },
       {
         id: 'debug-consume',
@@ -394,7 +427,7 @@
         method: 'GET',
         path: '/api/debug-config/consume',
         body: '',
-        hint: '返回当前配置后立刻清空。还没有配置时，状态码是 404。',
+        hint: '返回当前 data 后立刻清空，version 重置为 0。还没有配置时，状态码是 404。',
       },
       {
         id: 'debug-delete',
@@ -403,7 +436,7 @@
         method: 'DELETE',
         path: '/api/debug-config',
         body: '',
-        hint: '清空配置。成功时状态码是 204，没有响应体。',
+        hint: '清空配置并把 version 重置为 0。成功时状态码是 204，没有响应体。',
       },
       {
         id: 'visit-show',
@@ -412,7 +445,7 @@
         method: 'GET',
         path: '/api/page-visit',
         body: '',
-        hint: '返回已记录的打开情况，按最近打开时间倒序。',
+        hint: '返回 { data, total }，按最近打开时间倒序。每条记录含 requestId、openedAt、lastOpenedAt 和 openCount。',
       },
       {
         id: 'visit-open',
@@ -421,13 +454,23 @@
         method: 'POST',
         path: '/api/page-visit',
         body: '{\n  "tabId": "tab-1"\n}',
-        hint: 'tabId 必须是非空字符串。同一个 tabId 会累加 openCount，并保留第一次打开时间。',
+        hint: 'tabId 必须是非空字符串。同一个 tabId 会累加 openCount，并保留第一次打开的 openedAt。',
+      },
+      {
+        id: 'visit-open-query',
+        group: '页面访问',
+        name: '按查询参数打开',
+        method: 'POST',
+        path: '/api/page-visit?tabId=tab-2',
+        body: '',
+        hint: '请求体没有 tabId 时会读取查询参数。页面访问默认最多保留 100 个 tab，超限淘汰最久没有打开的记录。',
       },
     ];
 
     const HISTORY_KEY = 'api-debug-history';
     const methodEl = document.getElementById('method');
     const pathEl = document.getElementById('path');
+    const headersEl = document.getElementById('headers');
     const bodyEl = document.getElementById('body');
     const bodyField = document.getElementById('body-field');
     const hintEl = document.getElementById('hint');
@@ -466,15 +509,14 @@
     }
 
     function syncBodyVisibility() {
-      const visible = methodHasBody(methodEl.value);
-      bodyField.hidden = !visible;
-      formatEl.hidden = !visible;
+      bodyField.hidden = !methodHasBody(methodEl.value);
     }
 
     function applyEndpoint(endpoint) {
       activeId = endpoint.id;
       methodEl.value = endpoint.method;
       pathEl.value = endpoint.path;
+      headersEl.value = endpoint.headers || '';
       bodyEl.value = endpoint.body;
       hintEl.textContent = endpoint.hint;
       setError('');
@@ -557,7 +599,14 @@
           copy.textContent = '复制失败';
         });
       });
-      head.append(status, line, meta, copy);
+      head.append(status, line, meta);
+      if (result.requestId) {
+        const requestId = document.createElement('span');
+        requestId.className = 'meta request-id';
+        requestId.textContent = 'x-request-id: ' + result.requestId;
+        head.append(requestId);
+      }
+      head.append(copy);
 
       const pre = document.createElement('pre');
       pre.className = 'body';
@@ -600,11 +649,13 @@
         route.textContent = item.path;
         const code = document.createElement('span');
         code.textContent = String(item.status);
+        button.title = item.requestId ? 'x-request-id: ' + item.requestId : '';
         button.append(time, badge, route, code);
         button.addEventListener('click', () => {
           activeId = '';
           methodEl.value = item.method;
           pathEl.value = item.path;
+          headersEl.value = item.headers || '';
           bodyEl.value = item.body || '';
           hintEl.textContent = '来自最近请求，可以修改后再发送。';
           setError('');
@@ -613,6 +664,28 @@
         });
         historyEl.append(button);
       });
+    }
+
+    function parseHeaders() {
+      const raw = headersEl.value.trim();
+      if (!raw) return {};
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (err) {
+        throw new Error('请求头不是合法 JSON');
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('请求头必须是 JSON 对象');
+      }
+      const headers = {};
+      Object.entries(parsed).forEach(([ key, value ]) => {
+        if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+          throw new Error('请求头 ' + key + ' 的值必须是字符串');
+        }
+        headers[key] = String(value);
+      });
+      return headers;
     }
 
     async function send() {
@@ -626,7 +699,13 @@
       }
 
       const method = methodEl.value;
-      const headers = {};
+      let headers;
+      try {
+        headers = parseHeaders();
+      } catch (err) {
+        setError(err.message);
+        return;
+      }
       let payload;
       if (methodHasBody(method)) {
         const raw = bodyEl.value.trim();
@@ -637,7 +716,11 @@
             setError('请求体不是合法 JSON');
             return;
           }
-          headers['Content-Type'] = 'application/json';
+          const hasContentType = Object.keys(headers)
+            .some(key => key.toLowerCase() === 'content-type');
+          if (!hasContentType) {
+            headers['Content-Type'] = 'application/json';
+          }
         }
       }
 
@@ -666,20 +749,24 @@
           }
         }
         responseText = pretty;
+        const requestId = response.headers.get('x-request-id') || '';
         renderResponse({
           status: response.status,
           method,
           path,
           ms,
           pretty,
+          requestId,
           headers: Array.from(response.headers.entries()),
         });
         history.unshift({
           at: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
           method,
           path,
+          headers: headersEl.value.trim(),
           body: methodHasBody(method) ? bodyEl.value : '',
           status: response.status,
+          requestId,
         });
         history = history.slice(0, 20);
         saveHistory();
@@ -700,15 +787,26 @@
       }
     }
 
-    function formatBody() {
-      const raw = bodyEl.value.trim();
-      if (!raw) return;
+    function formatJsonField(element, label) {
+      const raw = element.value.trim();
+      if (!raw) return true;
       try {
-        bodyEl.value = JSON.stringify(JSON.parse(raw), null, 2);
-        setError('');
+        element.value = JSON.stringify(JSON.parse(raw), null, 2);
+        return true;
       } catch (err) {
-        setError('请求体不是合法 JSON');
+        setError(label + '不是合法 JSON');
+        return false;
       }
+    }
+
+    function formatBody() {
+      setError('');
+      let ok = true;
+      if (!bodyField.hidden) {
+        ok = formatJsonField(bodyEl, '请求体') && ok;
+      }
+      ok = formatJsonField(headersEl, '请求头') && ok;
+      if (ok) setError('');
     }
 
     methodEl.addEventListener('change', () => {

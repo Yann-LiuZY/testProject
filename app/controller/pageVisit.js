@@ -38,6 +38,7 @@ class PageVisitController extends Controller {
     const previous = store.get(tabId);
     const record = {
       tabId,
+      requestId: ctx.requestId,
       openedAt: previous ? previous.openedAt : now,
       lastOpenedAt: now,
       openCount: previous ? previous.openCount + 1 : 1,

@@ -1,4 +1,16 @@
 {
   "extends": "eslint-config-egg",
-  "root": true
+  "root": true,
+  "overrides": [
+    {
+      "files": [ "app/public/assets/js/**/*.js" ],
+      "env": {
+        "browser": true,
+        "es2022": true
+      },
+      "parserOptions": {
+        "sourceType": "module"
+      }
+    }
+  ]
 }

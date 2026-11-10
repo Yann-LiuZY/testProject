@@ -11,7 +11,7 @@
 
 - 工作区：`/Users/liuzhaoyang/projects/testProject`（T3 项目 `testProject`）。
 - T3 Code：v0.1.7；当前 server：`http://127.0.0.1:3773`。
-- 任务文档：`T3_CODE_TASKS_V3.md`（当前提交 `3be4266`）。本次只做 **T2**，不要动 T1/T3。
+- 任务文档：`T3_CODE_TASKS_V3.md`。本次只做 **T2**，不要动 T1/T3。
 - 开跑前确认：
   1. `git status --short` 干净；
   2. `git tag` 里有 `baseline`；

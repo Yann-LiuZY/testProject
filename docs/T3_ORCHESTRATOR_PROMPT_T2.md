@@ -66,16 +66,14 @@
 | 父线程 | `cursor` | `grok-4.7` | 规划、派活、汇总（如果当前父线程不是它，继续按总控职责执行） |
 | S1 | `codex` | `gpt-5.6-terra` | `clear` |
 | S2 | `acpRegistry_local_acp` | 含 DeepSeek-V4-Pro 的 slug | `prune` |
-| S3 | `cursor` | `claude-opus-5-5` | `touch` |
-| S4 | `cursor` | `gpt-5.6-sol` | 收口：路由、配置、前端合并、HTTP 集成测试 |
+| S3 | `cursor` | `grok-4.6` | `touch` |
+| S4 | `cursor` | `composer-2.5` | 收口：路由、配置、前端合并、HTTP 集成测试 |
 | 评审 | `codex` | `gpt-6-luna` | 独立 review |
 
 ### Fallback（按顺序，不要卡住）
 
 - Codex 不可用 / 429 / 额度不足：S1 改 `cursor` + `gpt-5.6-sol`；评审改 `cursor` + `gpt-5.3-codex`。
 - DeepSeek 不可用：S2 改 `cursor` + `deepseek-v41-flash-1017`，或 `cursor` + `claude-opus-5-5`。
-- Cursor Claude 不可用：S3 改 `cursor` + `gpt-5.6-sol`，或 `cursor` + `claude-opus-5`。
-- S4 的 `gpt-5.6-sol` 不可用：改 `codex` + `gpt-5.6-luna`，或 `cursor` + `composer-2.5`。
 - 任何 provider 报错：记录错误，换 fallback，不要反复重试到卡死；不要因此改成“单 agent 全包”。
 
 ## 3. 先输出所有权表，再派活

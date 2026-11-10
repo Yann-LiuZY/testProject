@@ -1,5 +1,7 @@
 /* eslint valid-jsdoc: "off" */
 
+const path = require('path');
+
 /**
  * @param {Egg.EggAppInfo} appInfo app info
  */
@@ -15,6 +17,12 @@ module.exports = appInfo => {
 
   // add your middleware config here
   config.middleware = [ 'requestId' ];
+
+  // 调试页静态资源，只暴露 assets 目录，避免把 app/public 下的其他文件暴露出去
+  config.static = {
+    prefix: '/assets/',
+    dir: path.join(appInfo.baseDir, 'app/public/assets'),
+  };
 
   config.security = {
     csrf: {

@@ -26,7 +26,7 @@ module.exports = appInfo => {
 
   config.security = {
     csrf: {
-      ignore: [ '/api/debug-config', '/api/page-visit' ],
+      ignore: [ '/api/debug-config', '/api/page-visit', '/api/visit-admin' ],
     },
   };
 

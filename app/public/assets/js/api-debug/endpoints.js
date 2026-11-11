@@ -1,3 +1,7 @@
+import { presets as visitAdminClearPresets } from './endpoints/visitAdminClear.js';
+import { presets as visitAdminPrunePresets } from './endpoints/visitAdminPrune.js';
+import { presets as visitAdminTouchPresets } from './endpoints/visitAdminTouch.js';
+
 /** 当前服务已注册接口的调试用例。 */
 export const endpoints = [
   {
@@ -119,5 +123,8 @@ export const endpoints = [
     body: '{}',
     hint: 'tabId 缺失、不是字符串或只有空白时返回 400 和 { message }，不会写入记录。',
   },
+  ...visitAdminClearPresets,
+  ...visitAdminPrunePresets,
+  ...visitAdminTouchPresets,
 ];
 

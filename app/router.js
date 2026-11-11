@@ -11,4 +11,7 @@ module.exports = app => {
   router.delete('/api/debug-config', controller.debugConfig.destroy);
   router.get('/api/page-visit', controller.pageVisit.show);
   router.post('/api/page-visit', controller.pageVisit.open);
+  router.post('/api/visit-admin/clear', controller.visitAdminClear.clear);
+  router.post('/api/visit-admin/prune', controller.visitAdminPrune.prune);
+  router.post('/api/visit-admin/touch', controller.visitAdminTouch.touch);
 };
